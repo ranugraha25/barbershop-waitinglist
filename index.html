@@ -58,10 +58,12 @@ import {
   addDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  doc,
+  getDoc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// CONFIG KAMU
 const firebaseConfig = {
   apiKey: "AIzaSyAHpfYfIn2_kVK7lvtluA6HA9XXnrXlMI4",
   authDomain: "barbershop-waiting-list.firebaseapp.com",
@@ -73,9 +75,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const queueRef = collection(db, "queue");
 
-// COLOR STATUS
+const queueRef = collection(db, "queue");
+const counterRef = doc(db, "counter", "queue");
+
 function getColor(status) {
   if (status === 'waiting') return 'bg-yellow-200';
   if (status === 'in progress') return 'bg-blue-200';
@@ -89,8 +92,8 @@ onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
   const list = document.getElementById("list");
   list.innerHTML = "";
 
-  snapshot.forEach(doc => {
-    const q = doc.data();
+  snapshot.forEach(d => {
+    const q = d.data();
 
     const li = document.createElement("li");
     li.className = `p-3 rounded flex justify-between ${getColor(q.status)}`;
@@ -107,7 +110,16 @@ window.addQueue = async function () {
 
   if (!name || !phone) return alert("Isi semua");
 
-  const number = Date.now(); // sementara pakai timestamp
+  const snap = await getDoc(counterRef);
+  let number = 1;
+
+  if (snap.exists()) {
+    number = snap.data().lastNumber + 1;
+
+    await updateDoc(counterRef, {
+      lastNumber: number
+    });
+  }
 
   await addDoc(queueRef, {
     number,
@@ -119,13 +131,12 @@ window.addQueue = async function () {
   document.getElementById("name").value = "";
   document.getElementById("phone").value = "";
 
-  alert("Berhasil ambil antrian");
+  alert("Nomor kamu: " + number);
 };
 
 // LOGIN
 window.login = function () {
   const pass = document.getElementById("pass").value;
-
   if (pass === "admin123") {
     window.location.href = "admin.html";
   } else {
