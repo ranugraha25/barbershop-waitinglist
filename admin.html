@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+
+<div class="max-w-3xl mx-auto">
+
+  <div class="bg-white p-5 rounded-2xl shadow">
+    <h1 class="text-xl font-bold mb-4 text-center">Admin Panel</h1>
+    <ul id="list" class="space-y-2"></ul>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  updateDoc,
+  doc,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAHpfYfIn2_kVK7lvtluA6HA9XXnrXlMI4",
+  authDomain: "barbershop-waiting-list.firebaseapp.com",
+  projectId: "barbershop-waiting-list",
+  storageBucket: "barbershop-waiting-list.firebasestorage.app",
+  messagingSenderId: "301778921791",
+  appId: "1:301778921791:web:1c7d95adacc1a767ec0b8a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const queueRef = collection(db, "queue");
+
+// COLOR
+function getColor(status) {
+  if (status === 'waiting') return 'bg-yellow-200';
+  if (status === 'in progress') return 'bg-blue-200';
+  if (status === 'done') return 'bg-green-200';
+  if (status === 'canceled') return 'bg-red-200';
+  return 'bg-gray-200';
+}
+
+// REALTIME
+onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  snapshot.forEach(d => {
+    const q = d.data();
+    const id = d.id;
+
+    const li = document.createElement("li");
+    li.className = `p-3 rounded ${getColor(q.status)}`;
+
+    li.innerHTML = `
+      <div class="flex flex-col gap-2">
+        <div>
+          <b>#${q.number}</b> - ${q.name}<br>
+          <small>${q.phone}</small><br>
+          <small>Status: ${q.status}</small>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setStatus('${id}','in progress')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Progress</button>
+          <button onclick="setStatus('${id}','done')" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Done</button>
+          <button onclick="setStatus('${id}','canceled')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Cancel</button>
+          <button onclick="wa('${q.phone}',${q.number})" class="bg-green-700 text-white px-2 py-1 rounded text-xs">WA</button>
+        </div>
+      </div>
+    `;
+
+    list.appendChild(li);
+  });
+});
+
+// UPDATE STATUS (MAX 3 PROGRESS)
+window.setStatus = async function (id, status) {
+  if (status === "in progress") {
+    const snapshot = await getDocs(query(queueRef));
+    const count = snapshot.docs.filter(d => d.data().status === 'in progress').length;
+
+    if (count >= 3) return alert("Max 3 antrian progress");
+  }
+
+  await updateDoc(doc(db, "queue", id), { status });
+};
+
+// WA
+window.wa = function (phone, num) {
+  const msg = `Antrian #${num} sudah dipanggil, 5 menit akan di skip`;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`);
+};
+</script>
+
+</body>
+</html>

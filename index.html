@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Antrian Barbershop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+<div class="min-h-screen flex flex-col lg:flex-row gap-4 p-4">
+
+  <!-- USER -->
+  <div class="flex-1">
+    <div class="bg-white p-5 rounded-2xl shadow">
+      <h1 class="text-xl font-bold mb-4 text-center">Ambil Antrian</h1>
+
+      <input id="name" placeholder="Nama"
+        class="border p-2 w-full mb-2 rounded" />
+
+      <input id="phone" placeholder="No WA (628xxx)"
+        class="border p-2 w-full mb-3 rounded" />
+
+      <button onclick="addQueue()"
+        class="w-full bg-blue-500 text-white py-2 rounded">
+        Ambil Nomor
+      </button>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl shadow mt-4">
+      <h2 class="font-bold mb-3 text-center">List Antrian</h2>
+      <ul id="list" class="space-y-2"></ul>
+    </div>
+  </div>
+
+  <!-- LOGIN ADMIN -->
+  <div class="flex-1">
+    <div class="bg-white p-5 rounded-2xl shadow">
+      <h2 class="text-xl font-bold mb-3 text-center">Login Admin</h2>
+
+      <input type="password" id="pass"
+        class="border p-2 w-full mb-3 rounded"
+        placeholder="Password" />
+
+      <button onclick="login()"
+        class="w-full bg-blue-500 text-white py-2 rounded">
+        Login
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// CONFIG KAMU
+const firebaseConfig = {
+  apiKey: "AIzaSyAHpfYfIn2_kVK7lvtluA6HA9XXnrXlMI4",
+  authDomain: "barbershop-waiting-list.firebaseapp.com",
+  projectId: "barbershop-waiting-list",
+  storageBucket: "barbershop-waiting-list.firebasestorage.app",
+  messagingSenderId: "301778921791",
+  appId: "1:301778921791:web:1c7d95adacc1a767ec0b8a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const queueRef = collection(db, "queue");
+
+// COLOR STATUS
+function getColor(status) {
+  if (status === 'waiting') return 'bg-yellow-200';
+  if (status === 'in progress') return 'bg-blue-200';
+  if (status === 'done') return 'bg-green-200';
+  if (status === 'canceled') return 'bg-red-200';
+  return 'bg-gray-200';
+}
+
+// REALTIME LIST
+onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  snapshot.forEach(doc => {
+    const q = doc.data();
+
+    const li = document.createElement("li");
+    li.className = `p-3 rounded flex justify-between ${getColor(q.status)}`;
+    li.innerHTML = `<span>#${q.number}</span><span>${q.status}</span>`;
+
+    list.appendChild(li);
+  });
+});
+
+// ADD QUEUE
+window.addQueue = async function () {
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+
+  if (!name || !phone) return alert("Isi semua");
+
+  const number = Date.now(); // sementara pakai timestamp
+
+  await addDoc(queueRef, {
+    number,
+    name,
+    phone,
+    status: "waiting"
+  });
+
+  document.getElementById("name").value = "";
+  document.getElementById("phone").value = "";
+
+  alert("Berhasil ambil antrian");
+};
+
+// LOGIN
+window.login = function () {
+  const pass = document.getElementById("pass").value;
+
+  if (pass === "admin123") {
+    window.location.href = "admin.html";
+  } else {
+    alert("Password salah");
+  }
+};
+</script>
+
+</body>
+</html>
