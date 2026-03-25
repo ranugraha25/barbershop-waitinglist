@@ -7,10 +7,16 @@
 </head>
 <body class="bg-gray-100 p-4">
 
-<div class="max-w-3xl mx-auto">
+<div class="max-w-4xl mx-auto space-y-4">
 
   <div class="bg-white p-5 rounded-2xl shadow">
     <h1 class="text-xl font-bold mb-4 text-center">Admin Panel</h1>
+
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button onclick="resetQueue()" class="bg-red-500 text-white px-3 py-2 rounded">Reset Antrian</button>
+      <button onclick="exportCSV()" class="bg-blue-500 text-white px-3 py-2 rounded">Export CSV</button>
+    </div>
+
     <ul id="list" class="space-y-2"></ul>
   </div>
 
@@ -25,7 +31,10 @@ import {
   updateDoc,
   doc,
   query,
-  orderBy
+  orderBy,
+  getDocs,
+  deleteDoc,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -39,9 +48,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const queueRef = collection(db, "queue");
 
-// COLOR
+const queueRef = collection(db, "queue");
+const counterRef = doc(db, "counter", "queue");
+
 function getColor(status) {
   if (status === 'waiting') return 'bg-yellow-200';
   if (status === 'in progress') return 'bg-blue-200';
@@ -50,7 +60,7 @@ function getColor(status) {
   return 'bg-gray-200';
 }
 
-// REALTIME
+// REALTIME LIST
 onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
   const list = document.getElementById("list");
   list.innerHTML = "";
@@ -71,7 +81,7 @@ onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <button onclick="setStatus('${id}','in progress')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Progress</button>
+          <button onclick="setProgress('${id}')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Progress</button>
           <button onclick="setStatus('${id}','done')" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Done</button>
           <button onclick="setStatus('${id}','canceled')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Cancel</button>
           <button onclick="wa('${q.phone}',${q.number})" class="bg-green-700 text-white px-2 py-1 rounded text-xs">WA</button>
@@ -83,16 +93,57 @@ onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
   });
 });
 
-// UPDATE STATUS (MAX 3 PROGRESS)
-window.setStatus = async function (id, status) {
-  if (status === "in progress") {
-    const snapshot = await getDocs(query(queueRef));
-    const count = snapshot.docs.filter(d => d.data().status === 'in progress').length;
+// PROGRESS (MAX 3)
+window.setProgress = async function (id) {
+  const snapshot = await getDocs(queueRef);
+  const count = snapshot.docs.filter(d => d.data().status === 'in progress').length;
 
-    if (count >= 3) return alert("Max 3 antrian progress");
+  if (count >= 3) return alert("Max 3 antrian progress");
+
+  await updateDoc(doc(db, "queue", id), {
+    status: "in progress"
+  });
+};
+
+window.setStatus = async function (id, status) {
+  await updateDoc(doc(db, "queue", id), { status });
+};
+
+// RESET
+window.resetQueue = async function () {
+  if (!confirm("Yakin reset semua antrian?")) return;
+
+  const snapshot = await getDocs(queueRef);
+
+  for (const d of snapshot.docs) {
+    await deleteDoc(doc(db, "queue", d.id));
   }
 
-  await updateDoc(doc(db, "queue", id), { status });
+  await setDoc(counterRef, {
+    lastNumber: 0
+  });
+
+  alert("Reset berhasil");
+};
+
+// EXPORT CSV
+window.exportCSV = async function () {
+  const snapshot = await getDocs(query(queueRef, orderBy("number")));
+
+  let csv = "Nomor,Nama,Phone,Status\n";
+
+  snapshot.forEach(d => {
+    const q = d.data();
+    csv += `${q.number},${q.name},${q.phone},${q.status}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'antrian.csv';
+  a.click();
 };
 
 // WA
