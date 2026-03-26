@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Display Antrian</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-black text-white">
+
+<div class="min-h-screen flex flex-col justify-center items-center text-center p-6">
+
+  <h1 class="text-3xl font-bold mb-6">BARBERSHOP</h1>
+
+  <!-- SEDANG DIPANGGIL -->
+  <div class="mb-10">
+    <h2 class="text-xl mb-3">Sedang Dipanggil</h2>
+    <div id="current" class="flex gap-6 text-6xl font-bold"></div>
+  </div>
+
+  <!-- NEXT -->
+  <div>
+    <h2 class="text-xl mb-3">Antrian Berikutnya</h2>
+    <div id="next" class="flex gap-4 text-3xl"></div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAHpfYfIn2_kVK7lvtluA6HA9XXnrXlMI4",
+  authDomain: "barbershop-waiting-list.firebaseapp.com",
+  projectId: "barbershop-waiting-list",
+  storageBucket: "barbershop-waiting-list.firebasestorage.app",
+  messagingSenderId: "301778921791",
+  appId: "1:301778921791:web:1c7d95adacc1a767ec0b8a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const queueRef = collection(db, "queue");
+
+onSnapshot(query(queueRef, orderBy("number")), (snapshot) => {
+
+  let current = [];
+  let waiting = [];
+
+  snapshot.forEach(d => {
+    const q = d.data();
+
+    if (q.status === "in progress") current.push(q.number);
+    if (q.status === "waiting") waiting.push(q.number);
+  });
+
+  // tampil current
+  const currentDiv = document.getElementById("current");
+  currentDiv.innerHTML = "";
+  current.forEach(n => {
+    currentDiv.innerHTML += `<div>#${n}</div>`;
+  });
+
+  // tampil next (max 5)
+  const nextDiv = document.getElementById("next");
+  nextDiv.innerHTML = "";
+  waiting.slice(0,5).forEach(n => {
+    nextDiv.innerHTML += `<div>#${n}</div>`;
+  });
+
+});
+</script>
+
+</body>
+</html>
